@@ -2,58 +2,120 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using static System.Globalization.GregorianCalendar;
 
 namespace System.Globalization
 {
-    public static class ISOWeek
+    public readonly struct ISOWeek : IEquatable<ISOWeek>, ISpanFormattable
     {
+        private const int DefaultFormatLength = 8;
+
         private const int WeeksInLongYear = 53;
         private const int WeeksInShortYear = 52;
 
         private const int MinWeek = 1;
         private const int MaxWeek = WeeksInLongYear;
 
-        public static int GetWeekOfYear(DateTime date)
+        public ISOWeek(int year, int week)
         {
-            int week = GetWeekNumber(date);
-
-            if (week < MinWeek)
+            if (year < MinYear || year > MaxYear)
             {
-                // If the week number obtained equals 0, it means that the
-                // given date belongs to the preceding (week-based) year.
-                return GetWeeksInYear(date.Year - 1);
+                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_Year);
             }
 
-            if (week > GetWeeksInYear(date.Year))
+            if (week < MinWeek || week > MaxWeek)
             {
-                // If a week number of 53 is obtained, one must check that
-                // the date is not actually in week 1 of the following year.
-                return MinWeek;
+                throw new ArgumentOutOfRangeException(nameof(week), SR.ArgumentOutOfRange_Week_ISO);
             }
 
-            return week;
+            Year = year;
+            Week = week;
         }
 
-        public static int GetYear(DateTime date)
+        public int Year { get; }
+
+        public int Week { get; }
+
+        public void Deconstruct(out int year, out int week)
+        {
+            year = Year;
+            week = Week;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj))
+            {
+                return false;
+            }
+
+            return obj is ISOWeek week && Equals(week);
+        }
+
+        public bool Equals(ISOWeek other)
+        {
+            return Year == other.Year && Week == other.Week;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Year, Week);
+        }
+
+        public override string ToString()
+        {
+            string weekString = string.FastAllocateString(DefaultFormatLength);
+
+            bool result = TryFormat(new Span<char>(ref weekString.GetRawStringData(), weekString.Length), out int charsWritten);
+            Debug.Assert(result && charsWritten == weekString.Length, "Formatting should have succeeded.");
+
+            return weekString;
+        }
+
+        public bool TryFormat(Span<char> destination, out int charsWritten)
+        {
+            if (destination.Length < DefaultFormatLength)
+            {
+                charsWritten = 0;
+                return false;
+            }
+
+            DateTimeFormat.WriteFourDecimalDigits((uint)Year, destination, 0);
+            destination[4] = '-';
+            destination[5] = 'W';
+            DateTimeFormat.WriteTwoDecimalDigits((uint)Week, destination, 6);
+
+            charsWritten = DefaultFormatLength;
+            return true;
+        }
+
+        bool ISpanFormattable.TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider provider)
+        {
+            // format and provider are ignored.
+            return TryFormat(destination, out charsWritten);
+        }
+
+        public static ISOWeek FromDateTime(DateTime date)
         {
             int week = GetWeekNumber(date);
+            int year = date.Year;
 
             if (week < MinWeek)
             {
                 // If the week number obtained equals 0, it means that the
                 // given date belongs to the preceding (week-based) year.
-                return date.Year - 1;
+                return new ISOWeek(year - 1, GetWeeksInYear(year - 1));
             }
 
-            if (week > GetWeeksInYear(date.Year))
+            if (week > GetWeeksInYear(year))
             {
                 // If a week number of 53 is obtained, one must check that
                 // the date is not actually in week 1 of the following year.
-                return date.Year + 1;
+                return new ISOWeek(year + 1, MinWeek);
             }
 
-            return date.Year;
+            return new ISOWeek(year, week);
         }
 
         // The year parameter represents an ISO week-numbering year (also called ISO year informally).
@@ -62,7 +124,8 @@ namespace System.Globalization
         // ISO week year numbering therefore slightly deviates from the Gregorian for some days close to 1 January.
         public static DateTime GetYearStart(int year)
         {
-            return ToDateTime(year, MinWeek, DayOfWeek.Monday);
+            var isoWeek = new ISOWeek(year, MinWeek);
+            return isoWeek.ToDateTime(DayOfWeek.Monday);
         }
 
         // The year parameter represents an ISO week-numbering year (also called ISO year informally).
@@ -71,7 +134,9 @@ namespace System.Globalization
         // ISO week year numbering therefore slightly deviates from the Gregorian for some days close to 1 January.
         public static DateTime GetYearEnd(int year)
         {
-            return ToDateTime(year, GetWeeksInYear(year), DayOfWeek.Sunday);
+            int weeksInYear = GetWeeksInYear(year);
+            var isoWeek = new ISOWeek(year, weeksInYear);
+            return isoWeek.ToDateTime(DayOfWeek.Sunday);
         }
 
         // From https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year:

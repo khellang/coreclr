@@ -1274,7 +1274,7 @@ namespace System
         /// This method performs best when the starting index is a constant literal.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void WriteTwoDecimalDigits(uint value, Span<char> destination, int offset)
+        internal static void WriteTwoDecimalDigits(uint value, Span<char> destination, int offset)
         {
             Debug.Assert(0 <= value && value <= 99);
 
@@ -1289,7 +1289,7 @@ namespace System
         /// This method performs best when the starting index is a constant literal.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void WriteFourDecimalDigits(uint value, Span<char> buffer, int startingIndex = 0)
+        internal static void WriteFourDecimalDigits(uint value, Span<char> buffer, int startingIndex = 0)
         {
             Debug.Assert(0 <= value && value <= 9999);
 
