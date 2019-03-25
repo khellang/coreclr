@@ -175,18 +175,8 @@ namespace System.Globalization
         //
         // If the ordinal date thus obtained is zero or negative, the date belongs to the previous calendar year.
         // If greater than the number of days in the year, to the following year.
-        public static DateTime ToDateTime(int year, int week, DayOfWeek dayOfWeek)
+        public DateTime ToDateTime(DayOfWeek dayOfWeek)
         {
-            if (year < MinYear || year > MaxYear)
-            {
-                throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_Year);
-            }
-
-            if (week < MinWeek || week > MaxWeek)
-            {
-                throw new ArgumentOutOfRangeException(nameof(week), SR.ArgumentOutOfRange_Week_ISO);
-            }
-
             // We allow 7 for convenience in cases where a user already has a valid ISO
             // day of week value for Sunday. This means that both 0 and 7 will map to Sunday.
             // The GetWeekday method will normalize this into the 1-7 range required by ISO.
@@ -195,13 +185,13 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(dayOfWeek), SR.ArgumentOutOfRange_DayOfWeek);
             }
 
-            var jan4 = new DateTime(year, month: 1, day: 4);
+            var jan4 = new DateTime(Year, month: 1, day: 4);
 
             int correction = GetWeekday(jan4.DayOfWeek) + 3;
 
-            int ordinal = (week * 7) + GetWeekday(dayOfWeek) - correction;
-                
-            return new DateTime(year, month: 1, day: 1).AddDays(ordinal - 1);
+            int ordinal = (Week * 7) + GetWeekday(dayOfWeek) - correction;
+
+            return new DateTime(Year, month: 1, day: 1).AddDays(ordinal - 1);
         }
 
         // From https://en.wikipedia.org/wiki/ISO_week_date#Calculating_the_week_number_of_a_given_date:
